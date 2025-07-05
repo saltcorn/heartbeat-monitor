@@ -2,12 +2,6 @@ const si = require("systeminformation");
 const Workflow = require("@saltcorn/data/models/workflow");
 const Form = require("@saltcorn/data/models/form");
 
-const DEFAULTS = {
-  disk_critical_pct: 80,
-  mem_critical_pct: 80,
-  cpu_critical_pct: 90,
-};
-
 const configuration_workflow = () => {
   return new Workflow({
     steps: [
@@ -23,21 +17,21 @@ const configuration_workflow = () => {
                 label: "Disk usage critical threshold (%)",
                 type: "Integer",
                 required: true,
-                default: DEFAULTS.disk_critical_pct,
+                default: 80,
               },
               {
                 name: "mem_critical_pct",
                 label: "Memory usage critical threshold (%)",
                 type: "Integer",
                 required: true,
-                default: DEFAULTS.mem_critical_pct,
+                default: 80,
               },
               {
                 name: "cpu_critical_pct",
-                label: "Disk usage critical threshold (%)",
+                label: "CPU usage critical threshold (%)",
                 type: "Integer",
                 required: true,
-                default: DEFAULTS.cpu_critical_pct,
+                default: 90,
               },
             ],
           });
@@ -53,7 +47,6 @@ const routes = (cfg) => [
     url: "/heartbeat",
     callback: async ({ req, res }) => {
       try {
-        console.log({ cfg });
         const [fsInfo] = await si.fsSize();
         const diskUsed = fsInfo
           ? Math.round((fsInfo.used / fsInfo.size) * 100)
@@ -79,15 +72,9 @@ const routes = (cfg) => [
           },
         };
 
-        console.log({
-          memUsed,
-          diskUsed,
-          cpuLoad,
-        });
-
+        res.set("Cache-Control", "no-store");
         return res.send(json);
       } catch (err) {
-        console.log({ err });
         return res.status(500).json({ error: "Heartbeat Failure" });
       }
     },

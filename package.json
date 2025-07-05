@@ -3,10 +3,24 @@
   "version": "0.1.0",
   "description": "Saltcorn plugin that provides system health monitoring endpoint",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saltcorn/heartbeat-monitor.git"
+  },
   "author": "Rutayisire Manzi Gerard Valentin",
   "license": "ISC",
   "dependencies": {
     "@saltcorn/data": "^1.3.0",
     "systeminformation": "^5.27.7"
+  },
+  "eslintConfig": {
+    "extends": "eslint:recommended",
+    "parserOptions": {
+      "ecmaVersion": 2022
+    },
+    "env": {
+      "node": true,
+      "es6": true
+    }
   }
 }
