@@ -1,8 +1,6 @@
 const si = require("systeminformation");
 const Workflow = require("@saltcorn/data/models/workflow");
 const Form = require("@saltcorn/data/models/form");
-// const EventLog = require("@saltcorn/data/models/eventlog");
-// const MetaData = require("@saltcorn/data/models/metadata");
 const db = require("@saltcorn/data/db");
 const { getState } = require("@saltcorn/data/db/state");
 const MetaData = require("@saltcorn/data/models/metadata");
@@ -45,6 +43,16 @@ const configuration_workflow = () => {
                 required: true,
                 default: 5,
               },
+              {
+                name: "min_role",
+                label: "Minimum user role to access heartbeat",
+                type: "String",
+                attributes: {
+                  options: ["admin", "staff", "user", "public"],
+                  multiple: false,
+                },
+                required: true,
+              },
             ],
           });
         },
@@ -59,6 +67,18 @@ const routes = (cfg) => [
     url: "/heartbeat",
     callback: async ({ req, res }) => {
       try {
+        const minRole =
+          {
+            admin: 1,
+            staff: 40,
+            user: 80,
+            public: 100,
+          }[cfg.min_role] || 100;
+
+        if ((req?.user?.role_id || 100) > minRole) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+
         const [fsInfo] = await si.fsSize();
         const diskUsed = fsInfo
           ? Math.round((fsInfo.used / fsInfo.size) * 100)
@@ -68,11 +88,6 @@ const routes = (cfg) => [
         const memUsed = Math.round((memInfo.active / memInfo.total) * 100);
 
         const cpuLoad = Math.round((await si.currentLoad()).currentLoad);
-
-        // const eventLogStartupCount = await EventLog.count({
-        //   event_type: "Startup",
-        // occur_at: {...} // Find a way to implement the correct date range filter
-        // });
 
         const startUpQuery = `
           SELECT COUNT(*) AS startup_last_24h
