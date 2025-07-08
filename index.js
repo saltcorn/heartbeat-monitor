@@ -1,6 +1,11 @@
 const si = require("systeminformation");
 const Workflow = require("@saltcorn/data/models/workflow");
 const Form = require("@saltcorn/data/models/form");
+// const EventLog = require("@saltcorn/data/models/eventlog");
+// const MetaData = require("@saltcorn/data/models/metadata");
+const db = require("@saltcorn/data/db");
+const { getState } = require("@saltcorn/data/db/state");
+const MetaData = require("@saltcorn/data/models/metadata");
 
 const configuration_workflow = () => {
   return new Workflow({
@@ -33,6 +38,13 @@ const configuration_workflow = () => {
                 required: true,
                 default: 90,
               },
+              {
+                name: "max_daily_restarts",
+                label: "Maximum number of restarts in 24 hours",
+                type: "Integer",
+                required: true,
+                default: 5,
+              },
             ],
           });
         },
@@ -57,6 +69,48 @@ const routes = (cfg) => [
 
         const cpuLoad = Math.round((await si.currentLoad()).currentLoad);
 
+        // const eventLogStartupCount = await EventLog.count({
+        //   event_type: "Startup",
+        // occur_at: {...} // Find a way to implement the correct date range filter
+        // });
+
+        const startUpQuery = `
+          SELECT COUNT(*) AS startup_last_24h
+          FROM   _sc_event_log
+          WHERE  event_type = 'Startup'
+          AND  occur_at >= CAST(strftime('%s','now','-24 hours') AS INTEGER) * 1000;
+        `;
+
+        const dailyRestarts =
+          (await db?.query(startUpQuery))?.rows[0]?.startup_last_24h || 0;
+
+        const auto_backup_frequency = getState().getConfig(
+          "auto_backup_frequency"
+        );
+
+        const frequencyMinutes =
+          {
+            Never: Infinity,
+            Daily: 1440,
+            Weekly: 10080,
+          }[auto_backup_frequency] || Infinity;
+
+        const latestBackupMetadata = await MetaData.find(
+          {
+            type: "Backup",
+            name: "Success",
+          },
+          { orderBy: "written_at", orderDesc: true, limit: 1 }
+        );
+
+        const backupStatus = latestBackupMetadata?.[0]
+          ? Date.now() -
+              new Date(latestBackupMetadata[0].written_at).getTime() <=
+            frequencyMinutes * 1.5 * 60 * 1000
+            ? "ok"
+            : "critical"
+          : "unknown";
+
         const json = {
           diskspace: {
             status: diskUsed >= cfg.disk_critical_pct ? "critical" : "ok",
@@ -69,6 +123,12 @@ const routes = (cfg) => [
           cpu: {
             status: cpuLoad >= cfg.cpu_critical_pct ? "critical" : "ok",
             percentage: String(cpuLoad),
+          },
+          systemStability: {
+            status: dailyRestarts >= cfg.max_daily_restarts ? "critical" : "ok",
+          },
+          lastBackup: {
+            status: backupStatus,
           },
         };
 
