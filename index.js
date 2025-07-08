@@ -65,7 +65,8 @@ const routes = (cfg) => [
   {
     method: "get",
     url: "/heartbeat",
-    callback: async ({ req, res }) => {
+    method: "get",
+    callback: async ({ res }, { req }) => {
       try {
         const minRole =
           {
