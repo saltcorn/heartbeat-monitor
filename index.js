@@ -4,6 +4,7 @@ const Form = require("@saltcorn/data/models/form");
 const db = require("@saltcorn/data/db");
 const { getState } = require("@saltcorn/data/db/state");
 const MetaData = require("@saltcorn/data/models/metadata");
+const EventLog = require("@saltcorn/data/models/eventlog");
 
 const configuration_workflow = () => {
   return new Workflow({
@@ -90,15 +91,30 @@ const routes = (cfg) => [
 
         const cpuLoad = Math.round((await si.currentLoad()).currentLoad);
 
-        const startUpQuery = `
-          SELECT COUNT(*) AS startup_last_24h
-          FROM   _sc_event_log
-          WHERE  event_type = 'Startup'
-          AND  occur_at >= CAST(strftime('%s','now','-24 hours') AS INTEGER) * 1000;
-        `;
+        // const startUpQuery = `
+        //   SELECT COUNT(*) AS startup_last_24h
+        //   FROM   _sc_event_log
+        //   WHERE  event_type = 'Startup'
+        //   AND  occur_at >= CAST(strftime('%s','now','-24 hours') AS INTEGER) * 1000;
+        // `;
 
-        const dailyRestarts =
-          (await db?.query(startUpQuery))?.rows[0]?.startup_last_24h || 0;
+        const dailyRestarts = await EventLog.find({
+          event_type: "Startup",
+        });
+
+        // not using sequelize here, will have to filter on occur_at
+        const dailyRestartsCount =
+          dailyRestarts?.filter(
+            (el) => el.occur_at >= Date.now() - 24 * 60 * 60 * 1000
+          ).length || 0;
+
+        console.log({
+          dailyRestarts,
+          dailyRestartsCount,
+        });
+
+        // const dailyRestarts =
+        //   (await db?.query(startUpQuery))?.rows[0]?.startup_last_24h || 0;
 
         const auto_backup_frequency = getState().getConfig(
           "auto_backup_frequency"
@@ -141,7 +157,8 @@ const routes = (cfg) => [
             percentage: String(cpuLoad),
           },
           systemStability: {
-            status: dailyRestarts >= cfg.max_daily_restarts ? "critical" : "ok",
+            status:
+              dailyRestartsCount >= cfg.max_daily_restarts ? "critical" : "ok",
           },
           lastBackup: {
             status: backupStatus,
@@ -151,9 +168,11 @@ const routes = (cfg) => [
         res.set("Cache-Control", "no-store");
         return res.json(json);
       } catch (err) {
-        return res
-          .status(500)
-          .json({ error: "Heartbeat Failure", details: err?.message , stack: err?.stack });
+        return res.status(500).json({
+          error: "Heartbeat Failure",
+          details: err?.message,
+          stack: err?.stack,
+        });
       }
     },
   },
