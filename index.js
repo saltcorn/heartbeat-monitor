@@ -151,7 +151,9 @@ const routes = (cfg) => [
         res.set("Cache-Control", "no-store");
         return res.json(json);
       } catch (err) {
-        return res.status(500).json({ error: "Heartbeat Failure" });
+        return res
+          .status(500)
+          .json({ error: "Heartbeat Failure", details: err?.message , stack: err?.stack });
       }
     },
   },
