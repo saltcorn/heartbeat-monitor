@@ -1,5 +1,5 @@
 {
-  "name": "heartbeat-monitor",
+  "name": "@saltcorn/heartbeat-monitor",
   "version": "0.1.0",
   "description": "Saltcorn plugin that provides system health monitoring endpoint",
   "main": "index.js",
