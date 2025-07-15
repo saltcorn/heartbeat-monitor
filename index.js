@@ -108,10 +108,10 @@ const routes = (cfg) => [
             (el) => el.occur_at >= Date.now() - 24 * 60 * 60 * 1000
           ).length || 0;
 
-        console.log({
+        /*console.log({
           dailyRestarts,
           dailyRestartsCount,
-        });
+        });*/
 
         // const dailyRestarts =
         //   (await db?.query(startUpQuery))?.rows[0]?.startup_last_24h || 0;
